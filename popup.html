@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>YTMusic Stay</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0f0f0f;
+      --surface: #1a1a1a;
+      --border: #2a2a2a;
+      --accent: #ff0040;
+      --accent-dim: rgba(255,0,64,.15);
+      --text: #f0f0f0;
+      --muted: #888;
+      --toggle-off: #333;
+      --toggle-on: var(--accent);
+      --radius: 10px;
+    }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      width: 280px;
+      padding: 0;
+      user-select: none;
+    }
+
+    /* Header */
+    .header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 18px 14px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo {
+      width: 30px;
+      height: 30px;
+      background: var(--accent);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .logo svg { width: 16px; height: 16px; fill: #fff; }
+
+    .header-text h1 {
+      font-size: 14px;
+      font-weight: 600;
+      letter-spacing: -.2px;
+      line-height: 1;
+    }
+
+    .header-text p {
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 2px;
+    }
+
+    /* Body */
+    .body { padding: 12px 14px 16px; display: flex; flex-direction: column; gap: 8px; }
+
+    /* Toggle row */
+    .row {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 10px;
+      cursor: pointer;
+      transition: border-color .15s, background .15s;
+    }
+    .row:hover { border-color: #3a3a3a; background: #1e1e1e; }
+
+    .row-info { flex: 1; }
+    .row-label {
+      font-size: 13px;
+      font-weight: 500;
+      line-height: 1.2;
+    }
+    .row-desc {
+      font-size: 11px;
+      color: var(--muted);
+      margin-top: 3px;
+      line-height: 1.4;
+    }
+
+    /* Toggle switch */
+    .toggle {
+      position: relative;
+      width: 36px;
+      height: 20px;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+    .toggle input { opacity: 0; width: 0; height: 0; position: absolute; }
+    .slider {
+      position: absolute;
+      inset: 0;
+      background: var(--toggle-off);
+      border-radius: 20px;
+      transition: background .2s;
+      cursor: pointer;
+    }
+    .slider::after {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 3px;
+      width: 14px;
+      height: 14px;
+      background: #fff;
+      border-radius: 50%;
+      transition: transform .2s cubic-bezier(.34,1.56,.64,1);
+    }
+    input:checked + .slider { background: var(--toggle-on); }
+    input:checked + .slider::after { transform: translateX(16px); }
+
+    /* Status badge */
+    .status {
+      margin: 4px 0 0;
+      padding: 8px 12px;
+      background: var(--accent-dim);
+      border: 1px solid rgba(255,0,64,.3);
+      border-radius: 8px;
+      font-size: 11px;
+      color: #ff6680;
+      text-align: center;
+      display: none;
+    }
+    .status.visible { display: block; }
+
+    /* Footer */
+    .footer {
+      border-top: 1px solid var(--border);
+      padding: 10px 14px;
+      font-size: 10px;
+      color: #555;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+<div class="header">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+      <path d="M12 3v10.55A4 4 0 1 0 14 17V7h4V3h-6z"/>
+    </svg>
+  </div>
+  <div class="header-text">
+    <h1>YTMusic Stay</h1>
+    <p>music.youtube.com enhancer</p>
+  </div>
+</div>
+
+<div class="body">
+
+  <div class="row" id="row-nav" onclick="toggleSetting('blockNavigation')">
+    <div class="row-info">
+      <div class="row-label">Stay in bottom player</div>
+      <div class="row-desc">Prevents songs from opening their own page. Music plays in the bar below.</div>
+    </div>
+    <label class="toggle" onclick="event.stopPropagation()">
+      <input type="checkbox" id="toggle-nav" onchange="toggleSetting('blockNavigation')" />
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="row" id="row-art" onclick="toggleSetting('removeAlbumArt')">
+    <div class="row-info">
+      <div class="row-label">Hide album art overlay</div>
+      <div class="row-desc">Removes the large artwork that appears at the bottom-right corner.</div>
+    </div>
+    <label class="toggle" onclick="event.stopPropagation()">
+      <input type="checkbox" id="toggle-art" onchange="toggleSetting('removeAlbumArt')" />
+      <span class="slider"></span>
+    </label>
+  </div>
+
+  <div class="status" id="status">
+    Reload the YouTube Music tab to apply changes.
+  </div>
+
+</div>
+
+<div class="footer">Active on music.youtube.com only</div>
+
+<script src="popup.js"></script>
+</body>
+</html>
