@@ -42,12 +42,14 @@
    * We intercept both routes.
    */
   function interceptNavigation() {
+    let allowNextNavigation = false;
+
     /* --- History API patch --- */
     const originalPushState = history.pushState.bind(history);
     const originalReplaceState = history.replaceState.bind(history);
 
     history.pushState = function (state, title, url) {
-      if (settings.blockNavigation && shouldBlock(url)) {
+      if (settings.blockNavigation && shouldBlock(url) && !allowNextNavigation) {
         // Let the player start but don't change the visible URL / page
         return;
       }
@@ -55,41 +57,51 @@
     };
 
     history.replaceState = function (state, title, url) {
-      if (settings.blockNavigation && shouldBlock(url)) {
+      if (settings.blockNavigation && shouldBlock(url) && !allowNextNavigation) {
         return;
       }
       return originalReplaceState(state, title, url);
     };
 
-    /* --- Click interception for anchor tags --- */
+    /* --- Click interception for anchor tags and player bar --- */
     document.addEventListener(
       "click",
       (e) => {
         if (!settings.blockNavigation) return;
 
-        // Walk up the DOM to find an anchor
         let target = e.target;
-        while (target && target !== document.body) {
-          if (target.tagName === "A" && target.href && shouldBlock(target.href)) {
+        
+        // 1. Check if click is inside the player bar (e.g. expanding lyrics/queue)
+        let node = target;
+        while (node && node !== document.body) {
+          if (node.tagName === "YTMUSIC-PLAYER-BAR") {
+            allowNextNavigation = true;
+            setTimeout(() => { allowNextNavigation = false; }, 100);
+            return; // Allow the default behavior for player bar elements
+          }
+          node = node.parentElement;
+        }
+
+        // 2. Otherwise, intercept anchor clicks strictly outside the player bar
+        node = target;
+        while (node && node !== document.body) {
+          if (node.tagName === "A" && node.href && shouldBlock(node.href)) {
             e.preventDefault();
             e.stopImmediatePropagation();
 
-            // Trigger playback without navigating:
-            // YTM exposes yt.setConfig / ytcfg — but the most reliable approach
-            // is to dispatch a synthetic click on the actual play button inside
-            // the song row, which the player already handles.
-            triggerPlayback(target);
+            // Trigger playback without navigating
+            triggerPlayback(node);
             return;
           }
-          target = target.parentElement;
+          node = node.parentElement;
         }
       },
       true // capture phase — fires before YTM's own listeners
     );
 
-    /* --- ytd-app / yt-navigate-finish guard --- */
+    /* --- ytd-app / yt-navigate-start guard --- */
     document.addEventListener("yt-navigate-start", (e) => {
-      if (!settings.blockNavigation) return;
+      if (!settings.blockNavigation || allowNextNavigation) return;
       const url = e?.detail?.endpoint?.commandMetadata?.webCommandMetadata?.url;
       if (url && shouldBlock(url)) {
         e.stopImmediatePropagation();
@@ -137,7 +149,8 @@
         row.querySelector('[aria-label*="play" i]') ||
         row.querySelector(".play-button") ||
         row.querySelector("tp-yt-paper-icon-button") ||
-        row.querySelector('.yt-spec-button-shape-next'); // Catch more modern button shapes
+        row.querySelector('.yt-spec-button-shape-next') ||
+        row.querySelector('ytmusic-play-button-renderer'); // Catch more modern button shapes
 
       if (playBtn && typeof playBtn.click === 'function') {
         playBtn.click();
@@ -251,11 +264,6 @@
         display: none !important;
         opacity: 0 !important;
         pointer-events: none !important;
-      }
-
-      /* Prevent the player page from taking over the full viewport */
-      ytmusic-player-page {
-        display: none !important;
       }
 
       /* Keep the bottom bar always visible */
